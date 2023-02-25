@@ -1,4 +1,6 @@
 from collections import namedtuple
+
+import game
 import settings_manager
 
 
@@ -7,7 +9,8 @@ class Pile:
         self.Order = namedtuple('Order', ['foundation', 'rank', 'color_suit'])
         self.card_width, self.card_height = card_size
 
-        self.draw_three = settings_manager.load_settings()['draw_three']
+        # self.draw_three = settings_manager.load_settings()['draw_three']
+        self.draw_three = False
 
         self.pile_type = pile_type
         if self.pile_type == 'tableau':
@@ -113,6 +116,7 @@ class Pile:
                     break
 
             if len(self.cards) != 0:
+
                 if self.draw_three == True:
                     if len(self.cards) >= 3:
                         index_range = 3
@@ -127,6 +131,8 @@ class Pile:
                 else:
                     wastepile.cards.append(self.cards[-1])
                     del self.cards[-1]
+            elif game.vegas_rules:
+                game.win_screen()
             else:
                 self.cards = wastepile.cards[::-1]
                 wastepile.cards = []
