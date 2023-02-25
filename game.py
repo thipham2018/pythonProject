@@ -3,6 +3,7 @@ from deck import Deck
 from ui import Text, Button, RadioGroup, Radio, Checkbox
 import settings_manager, history_manager
 
+vegas_rules = settings_manager.load_settings()['vegas_rules']
 
 white = (255, 255, 255)
 black = (0, 0, 0)
@@ -17,16 +18,30 @@ pygame.init()
 
 game_display = pygame.display.set_mode(display_dimensions)
 
+# window Name
 pygame.display.set_caption('Solitare')
 
+# window icon
+icon = pygame.image.load('resources/solitaire_icon.png')
+pygame.display.set_icon(icon)
+
+# main game clock, ie this checks 10 times per second (FPS) for any update
 clock = pygame.time.Clock()
 FPS = 10
-total_score = 0
 
+total_score = 0
+if vegas_rules:
+    total_score = -52
+
+
+# quits the game
 def quit_game():
     pygame.quit()
     quit()
 
+
+# runs the 'win' screen... gives options to play again, go back to main menu, or quit the game
+# also runs the game over screen for vegas rules... acts the same way and displays score
 def win_screen():
     f = open("game_data/highscore.txt", "w")
     f.write(str(total_score))
@@ -35,8 +50,10 @@ def win_screen():
     play_again_button = Button(display_dimensions, "Play Again", (0, 0), (200, 100), blue, text_color=white, text_size=25, action="play_again")
     start_menu_button = Button(display_dimensions, "Start Menu", (-250, 0), (200, 100), green, text_color=white, text_size=25, action="start_menu")
     buttons = [quit_button, play_again_button, start_menu_button]
-
-    win_text = Text(display_dimensions, (0, -200), "You Win!!!", 60, black)
+    if vegas_rules:
+        win_text = Text(display_dimensions, (0, -200), "Game over. You scored "+str(total_score)+" points.", 60, black)
+    else:
+        win_text = Text(display_dimensions, (0, -200), "You Win!!!", 60, black)
     while True:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -65,6 +82,7 @@ def win_screen():
         pygame.display.update()
         clock.tick(FPS)
 
+
 def game_loop():
     global total_score
     undo_button = Button(display_dimensions, "Undo", (10, 10), (30, 30), grey, centered=False, text_size=11, action="undo")
@@ -77,7 +95,6 @@ def game_loop():
     deck.load_piles(display_dimensions)
 
     hm = history_manager.HistoryManager(deck)
-    score = 0
     while True:
         if deck.check_for_win():
             win_screen()
@@ -89,6 +106,7 @@ def game_loop():
                 if event.key == pygame.K_r:
                     total_score = 0
                     game_loop()
+                    # for testing if you can win. TODO change later
                 elif event.key == pygame.K_w:
                     win_screen()
             if event.type == pygame.MOUSEBUTTONDOWN:    
@@ -111,7 +129,7 @@ def game_loop():
                 if event.button == 3:
                     deck.handle_right_click(mouse_pos)
 
-        game_display.fill(green)
+        game_display.fill([2, 48, 32])  # background color #023020
         
         for button in buttons:
             button.display(game_display, pygame.mouse.get_pos())
@@ -132,8 +150,11 @@ def options_menu():
     back_button = Button(display_dimensions, "Back", (10, 25), (75, 25), red, centered=False, text_color=white, text_size=14, action="back")
     buttons = [back_button]
 
-    draw_three_checkbox = Checkbox(display_dimensions, (10, 100), centered=False, checked=settings['draw_three'])
-    draw_three_label = Text(display_dimensions, (40, 100), "Draw three cards from deck", 14, black, centered=False)
+    #draw_three_checkbox = Checkbox(display_dimensions, (10, 100), centered=False, checked=settings['draw_three'])
+    #draw_three_label = Text(display_dimensions, (40, 100), "Draw three cards from deck", 14, black, centered=False)
+
+    vegas_rules_checkbox = Checkbox(display_dimensions, (10, 100), centered=False, checked=settings['vegas_rules'])
+    vegas_rules_label = Text(display_dimensions, (40, 100), "Play with Vegas Rules", 14, black, centered=False)
 
     while True:
         for event in pygame.event.get():
@@ -145,20 +166,32 @@ def options_menu():
                     for button in buttons:
                         if button.check_if_clicked(mouse_pos):
                             if button.action == "back":
-                                settings_manager.save_settings({'draw_three': draw_three_checkbox.checked})
+                                #settings_manager.save_settings({'draw_three': draw_three_checkbox.checked})
+                                settings_manager.save_settings({'vegas_rules': vegas_rules_checkbox.checked})
+                                global vegas_rules
+                                vegas_rules = settings_manager.load_settings()['vegas_rules']
+                                global total_score
+                                if vegas_rules:
+                                    total_score = -52
+                                else:
+                                    total_score = 0
                                 start_menu()
                             else:
                                 print("Button action: {} does not exist".format(button.action))
 
-                    draw_three_checkbox.check_if_clicked(mouse_pos)
+                    # draw_three_checkbox.check_if_clicked(mouse_pos)
+                    vegas_rules_checkbox.check_if_clicked(mouse_pos)
 
         game_display.fill(white)
 
         title_text.display(game_display)
         about_text.display(game_display)
 
-        draw_three_label.display(game_display)
-        draw_three_checkbox.display(game_display)
+        # draw_three_label.display(game_display)
+        # draw_three_checkbox.display(game_display)
+
+        vegas_rules_checkbox.display(game_display)
+        vegas_rules_label.display(game_display)
 
         for button in buttons:
             button.display(game_display, pygame.mouse.get_pos())
@@ -175,6 +208,8 @@ def start_menu():
     options_button = Button(display_dimensions, "Options", (-200, 0), (100, 50), grey, text_color=white, action="options")
     buttons = [play_button, quit_button, options_button]
 
+    global vegas_rules
+    vegas_rules = settings_manager.load_settings()['vegas_rules']
     while True:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
