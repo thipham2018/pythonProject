@@ -1,176 +1,242 @@
-import os
-import random
 import pygame
-from itertools import count
-from pile import Pile
-from card import Card
+from deck import Deck
+from ui import Text, Button, RadioGroup, Radio, Checkbox
+import settings_manager, history_manager
+
+vegas_rules = settings_manager.load_settings()['vegas_rules']
+
+white = (255, 255, 255)
+black = (0, 0, 0)
+green = (0, 200, 0)
+blue = (50, 50, 190)
+red = (190, 50, 50)
+grey = (100, 100, 100)
+
+display_dimensions = (1100, 800)
+
+pygame.init()
+
+game_display = pygame.display.set_mode(display_dimensions)
+
+# window Name
+pygame.display.set_caption('Solitare')
+
+# window icon
+icon = pygame.image.load('resources/solitaire_icon.png')
+pygame.display.set_icon(icon)
+
+# main game clock, ie this checks 10 times per second (FPS) for any update
+clock = pygame.time.Clock()
+FPS = 10
+
+total_score = 0
+if vegas_rules:
+    total_score = -52
 
 
-# the deck class should handle the clicking of the cards
-class Deck:
-    def __init__(self, piles=[], card_images={}, card_size=(100, 150)):
-        # cards list is only used when starting/restarting a game
-        self.cards = []
-
-        self.suits = ['clubs', 'diamonds', 'hearts', 'spades']
-        self.ranks = ['ace', '2', '3', '4', '5', '6', '7', '8',
-                      '9', '10', 'jack', 'queen', 'king']
-
-        self.selection = False
-        self.selected_cards = []
-        self.selected_pile = None
-        self.selection_rect = None
-        self.selection_color = (255, 255, 0)
-        self.empty_color = (100, 100, 200)
-
-        # these attributes can be modified when undoing/redoing
-        self.piles = piles
-        self.card_images = card_images
-        self.card_size = card_size
-
-        name_of_image = os.path.join('resources', 'card_back.png')
-        self.card_back_image = pygame.image.load(name_of_image)
-        self.card_back = self.resize_card_back()
-
-    def resize_card_back(self):
-        return pygame.transform.scale(self.card_back_image, self.card_size)
-
-    def resize_card_images(self):
-        for name_of_image, card_image in self.card_images.items():
-            self.card_images[name_of_image] = pygame.transform.scale(card_image, self.card_size)
-
-    def load_cards(self):
-        for suit in self.suits:
-            for rank in self.ranks:
-                name_of_image = os.path.join('resources', 'cards', '{}_of_{}.png'.format(rank, suit))
-                self.card_images[name_of_image] = pygame.image.load(name_of_image)
-                self.cards.append(Card(name_of_image, self.card_size, rank, suit))
-        self.resize_card_images()
-
-    def load_piles(self, display_size):
-        display_width, display_height = display_size
-        pile_spacing = 50
-
-        start_x = 50
-        start_y = self.card_size[1] + 100
-
-        foundation_x_step = self.card_size[0] + pile_spacing
-        foundation_start_x = display_width - (foundation_x_step * 4)
-
-        tableau1 = Pile([self.cards[0]], start_x, start_y, self.card_size)
-        tableau2 = Pile(self.cards[1:3], start_x + self.card_size[0] + pile_spacing, start_y, self.card_size)
-        tableau3 = Pile(self.cards[3:6], start_x + self.card_size[0]*2 + pile_spacing*2, start_y, self.card_size)
-        tableau4 = Pile(self.cards[6:10], start_x + self.card_size[0]*3 + pile_spacing*3, start_y, self.card_size)
-        tableau5 = Pile(self.cards[10:15], start_x + self.card_size[0]*4 + pile_spacing*4, start_y, self.card_size)
-        tableau6 = Pile(self.cards[15:21], start_x + self.card_size[0]*5 + pile_spacing*5, start_y, self.card_size)
-        tableau7 = Pile(self.cards[21:28], start_x + self.card_size[0]*6 + pile_spacing*6, start_y, self.card_size)
-
-        stock = Pile(self.cards[28:], start_x, pile_spacing, self.card_size, pile_type="stock")
-        waste = Pile([], start_x + self.card_size[0] + pile_spacing, pile_spacing, self.card_size, pile_type="waste")
-
-        foundation1 = Pile([], foundation_start_x, pile_spacing, self.card_size, pile_type="foundation")
-        foundation2 = Pile([], foundation_start_x + foundation_x_step, pile_spacing, self.card_size, pile_type="foundation")
-        foundation3 = Pile([], foundation_start_x + foundation_x_step*2, pile_spacing, self.card_size, pile_type="foundation")
-        foundation4 = Pile([], foundation_start_x + foundation_x_step*3, pile_spacing, self.card_size, pile_type="foundation")
-
-        self.piles = [tableau1, tableau2, tableau3, tableau4, tableau5, tableau6, tableau7,
-                      stock, waste,
-                      foundation1, foundation2, foundation3, foundation4]
-
-    def shuffle_cards(self):
-        random.shuffle(self.cards)
-
-    def deselect(self):
-        self.selection = False
-        self.selected_pile = None
-        self.selected_cards = []
-
-    def which_pile_clicked(self, mouse_position):
-        for pile in self.piles:
-                if pile.check_if_clicked(mouse_position):
-                    return pile
-        else:
-            return None
-
-    def update(self, piles_to_update, display_height):
-        for pile in self.piles:
-            pile.update()
-
-        if piles_to_update != None:
-            for pile in piles_to_update:
-                pile.fit_pile_to_screen(display_height)
-                pile.update_positions()
-
-    def handle_click(self, mouse_position):
-        piles_to_update = None
-        valid_move = False
-        score = 0
-        if self.selection == False:
-            # the player selects card/s
-            self.selected_pile = self.which_pile_clicked(mouse_position)
-
-            if self.selected_pile != None:
-                if self.selected_pile.pile_type == 'stock':
-                    valid_move = True
-                    score = 0
-            if self.selected_pile != None:
-                self.selection, self.selected_cards, deselect_pile = self.selected_pile.selected(mouse_position, self.piles)
-                if deselect_pile:
-                    self.deselect()
-                else:
-                    if len(self.selected_cards) != 0:
-                        self.selection_rect = self.selected_pile.selection_rect(self.selected_cards[0])
-        else:
-            pile_to_transfer_to = self.which_pile_clicked(mouse_position)
-            if self.selected_pile != None and pile_to_transfer_to != None:
-                valid_move = self.selected_pile.transfer_cards(self.selected_cards, pile_to_transfer_to, self.ranks)
-                score = 5 if (self.selected_pile.pile_type != 'stock' and valid_move) else 0
-                piles_to_update = self.selected_pile, pile_to_transfer_to
-            else:
-                piles_to_update = None
-
-            self.deselect()
-        return piles_to_update, valid_move, score
-
-    def handle_right_click(self, mouse_position):
-        self.deselect()
-
-    def check_for_win(self):
-        foundation_piles = [pile for pile in self.piles if pile.pile_type == 'foundation']
-        for pile in foundation_piles:
-            if len(pile.cards) < 13:
-                return False
-        else:
-            return True
-
-    def display(self, game_display):
-        for pile in self.piles:
-            if pile.pile_type == 'foundation' or pile.pile_type == 'deck' and len(pile.cards) == 0:
-                pygame.draw.rect(game_display, self.empty_color, [pile.x, pile.y, pile.card_width, pile.card_height])
-            for card in pile.cards:
-                if self.selection and self.selection_rect != None and card == self.selected_cards[0]:
-                    pygame.draw.rect(game_display, self.selection_color, self.selection_rect)
-
-                if card.face_up:  
-                    img = self.card_images[card.name_of_image]
-                else:
-                    img = self.card_back
-
-                game_display.blit(img, [card.x, card.y])
+# quits the game
+def quit_game():
+    pygame.quit()
+    quit()
 
 
-class CompressedDeck:
-    _ids = count(0)
+# runs the 'win' screen... gives options to play again, go back to main menu, or quit the game
+# also runs the game over screen for vegas rules... acts the same way and displays score
+def win_screen():
+    f = open("game_data/highscore.txt", "w")
+    f.write(str(total_score))
+    f.close()
+    quit_button = Button(display_dimensions, "Quit", (250, 0), (200, 100), red, text_color=white, text_size=25, action="quit")
+    play_again_button = Button(display_dimensions, "Play Again", (0, 0), (200, 100), blue, text_color=white, text_size=25, action="play_again")
+    start_menu_button = Button(display_dimensions, "Start Menu", (-250, 0), (200, 100), green, text_color=white, text_size=25, action="start_menu")
+    buttons = [quit_button, play_again_button, start_menu_button]
+    if vegas_rules:
+        win_text = Text(display_dimensions, (0, -200), "Game over. You scored "+str(total_score)+" points.", 60, black)
+    else:
+        win_text = Text(display_dimensions, (0, -200), "You Win!!!", 60, black)
+    while True:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                quit_game()
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                    mouse_pos = pygame.mouse.get_pos()
+                    if event.button == 1:
+                        for button in buttons:
+                            if button.check_if_clicked(mouse_pos):
+                                if button.action == "quit":
+                                    quit_game()
+                                elif button.action == "play_again":
+                                    game_loop()
+                                elif button.action == "start_menu":
+                                    start_menu()
+                                else:
+                                    print("Button action: {} does not exist".format(button.action))
 
-    def __init__(self, piles):
-        self.id = next(self._ids)
-        self.piles = piles
+        game_display.fill(white)
 
-    def decompress(self, card_images, card_size):
-        return Deck(self.piles, card_images, card_size)
+        for button in buttons:
+            button.display(game_display, pygame.mouse.get_pos())
 
-    def __str__(self):
-        return str([card for card in self.piles if card.face_up == True])
+        win_text.display(game_display)
 
-    def __repr__(self):
-        return "CompressedDeck #{}".format(self.id)
+        pygame.display.update()
+        clock.tick(FPS)
+
+
+def game_loop():
+    global total_score
+    undo_button = Button(display_dimensions, "Undo", (10, 10), (30, 30), grey, centered=False, text_size=11, action="undo")
+    restart_button = Button(display_dimensions, "Restart", (display_dimensions[0]-50, 10), (40, 30), grey, centered=False, text_size=10, action="restart")
+    buttons = [undo_button, restart_button]
+
+    deck = Deck()
+    deck.load_cards()
+    deck.shuffle_cards()
+    deck.load_piles(display_dimensions)
+
+    hm = history_manager.HistoryManager(deck)
+    while True:
+        if deck.check_for_win():
+            win_screen()
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                quit_game()
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_r:
+                    total_score = 0
+                    game_loop()
+                    # for testing if you can win. TODO change later
+                elif event.key == pygame.K_w:
+                    win_screen()
+            if event.type == pygame.MOUSEBUTTONDOWN:    
+                mouse_pos = pygame.mouse.get_pos()
+                if event.button == 1:
+                    piles_to_update, valid_move, score = deck.handle_click(mouse_pos)
+                    total_score += score
+                    
+                    deck.update(piles_to_update, display_dimensions[1])
+                    if valid_move:
+                        hm.valid_move_made(deck)
+
+                    for button in buttons:
+                        if button.check_if_clicked(mouse_pos):
+                            if button.action == "undo":
+                                deck = hm.undo(deck)
+                                total_score -= (5 if total_score != 0 else 0)
+                            if button.action == "restart":
+                                game_loop()
+                if event.button == 3:
+                    deck.handle_right_click(mouse_pos)
+
+        game_display.fill([2, 48, 32])  # background color #023020
+        
+        for button in buttons:
+            button.display(game_display, pygame.mouse.get_pos())
+        
+        score_text = Text(display_dimensions, (0, -380), "Score: {}".format(total_score), 20, black)
+        score_text.display(game_display)
+        deck.display(game_display)
+        pygame.display.update()
+        clock.tick(FPS)
+
+
+def options_menu():
+    settings = settings_manager.load_settings()
+
+    title_text = Text(display_dimensions, (0, -370), "Options", 40, black)
+    about_text = Text(display_dimensions, (0, 350), "2023", 14, black)
+
+    back_button = Button(display_dimensions, "Back", (10, 25), (75, 25), red, centered=False, text_color=white, text_size=14, action="back")
+    buttons = [back_button]
+
+    #draw_three_checkbox = Checkbox(display_dimensions, (10, 100), centered=False, checked=settings['draw_three'])
+    #draw_three_label = Text(display_dimensions, (40, 100), "Draw three cards from deck", 14, black, centered=False)
+
+    vegas_rules_checkbox = Checkbox(display_dimensions, (10, 100), centered=False, checked=settings['vegas_rules'])
+    vegas_rules_label = Text(display_dimensions, (40, 100), "Play with Vegas Rules", 14, black, centered=False)
+
+    while True:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                quit_game()
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                mouse_pos = pygame.mouse.get_pos()
+                if event.button == 1:
+                    for button in buttons:
+                        if button.check_if_clicked(mouse_pos):
+                            if button.action == "back":
+                                #settings_manager.save_settings({'draw_three': draw_three_checkbox.checked})
+                                settings_manager.save_settings({'vegas_rules': vegas_rules_checkbox.checked})
+                                global vegas_rules
+                                vegas_rules = settings_manager.load_settings()['vegas_rules']
+                                global total_score
+                                if vegas_rules:
+                                    total_score = -52
+                                else:
+                                    total_score = 0
+                                start_menu()
+                            else:
+                                print("Button action: {} does not exist".format(button.action))
+
+                    # draw_three_checkbox.check_if_clicked(mouse_pos)
+                    vegas_rules_checkbox.check_if_clicked(mouse_pos)
+
+        game_display.fill(white)
+
+        title_text.display(game_display)
+        about_text.display(game_display)
+
+        # draw_three_label.display(game_display)
+        # draw_three_checkbox.display(game_display)
+
+        vegas_rules_checkbox.display(game_display)
+        vegas_rules_label.display(game_display)
+
+        for button in buttons:
+            button.display(game_display, pygame.mouse.get_pos())
+
+        pygame.display.update()
+        clock.tick(FPS)
+
+
+def start_menu():
+    title = Text(display_dimensions, (0, -100), "Solitaire", 50, black)
+
+    play_button = Button(display_dimensions, "Play", (0, 0), (100, 50), blue, text_color=white, text_size=26, action="start_game")
+    quit_button = Button(display_dimensions, "Quit", (200, 0), (100, 50), red, text_color=white, action="quit")
+    options_button = Button(display_dimensions, "Options", (-200, 0), (100, 50), grey, text_color=white, action="options")
+    buttons = [play_button, quit_button, options_button]
+
+    global vegas_rules
+    vegas_rules = settings_manager.load_settings()['vegas_rules']
+    while True:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                quit_game()
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                mouse_pos = pygame.mouse.get_pos()
+                if event.button == 1:
+                    for button in buttons:
+                        if button.check_if_clicked(mouse_pos):
+                            if button.action == "start_game":
+                                game_loop()
+                            elif button.action == "quit":
+                                quit_game()
+                            elif button.action == "options":
+                                options_menu()
+                                pass
+                            else:
+                                print("Button action: {} does not exist".format(button.action))
+
+        game_display.fill(white)
+
+        title.display(game_display)
+
+        for button in buttons:
+            button.display(game_display, pygame.mouse.get_pos())
+
+        pygame.display.update()
+        clock.tick(FPS)
+
+
