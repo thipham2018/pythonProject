@@ -39,6 +39,7 @@ class Deck:
         for name_of_image, card_image in self.card_images.items():
             self.card_images[name_of_image] = pygame.transform.scale(card_image, self.card_size)
 
+    # TODO fix deck creation so a full deck is made
     def load_cards(self):
         for suit in self.suits:
             for rank in self.ranks:

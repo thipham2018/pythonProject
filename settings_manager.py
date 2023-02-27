@@ -2,7 +2,11 @@ import pickle
 import os
 
 
-default_settings = {'draw_three': False}
+# default_settings = {'draw_three': False}
+default_settings = {'vegas_rules': False}
+
+
+
 
 def save_settings(settings):
     data = settings
