@@ -19,7 +19,7 @@ pygame.init()
 game_display = pygame.display.set_mode(display_dimensions)
 
 # window Name
-pygame.display.set_caption('Solitare')
+pygame.display.set_caption('Solitaire')
 
 # window icon
 icon = pygame.image.load('resources/solitaire_icon.png')
@@ -134,7 +134,7 @@ def game_loop():
         for button in buttons:
             button.display(game_display, pygame.mouse.get_pos())
         
-        score_text = Text(display_dimensions, (0, -380), "Score: {}".format(total_score), 20, black)
+        score_text = Text(display_dimensions, (0, -380), "Score: {}".format(total_score), 20, white)
         score_text.display(game_display)
         deck.display(game_display)
         pygame.display.update()
