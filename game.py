@@ -83,6 +83,42 @@ def win_screen():
         clock.tick(FPS)
 
 
+def pause_screen():
+    start_menu_button = Button(display_dimensions, "Start Menu", (-250, 0), (200, 100), green, text_color=white, text_size=25, action="start_menu")
+    unpause_button = Button(display_dimensions, "Unpause", (0, 0), (200, 100), blue, text_color=white, text_size=25, action="unpause")
+    quit_button = Button(display_dimensions, "Quit", (250, 0), (200, 100), red, text_color=white, text_size=25, action="quit")
+    buttons = [start_menu_button, unpause_button, quit_button]
+    pause_text = Text(display_dimensions, (0, -200), "Paused", 60, black)
+
+    while True:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                quit_game()
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                mouse_pos = pygame.mouse.get_pos()
+                if event.button == 1:
+                    for button in buttons:
+                        if button.check_if_clicked(mouse_pos):
+                            if button.action == "start_menu":
+                                start_menu()
+                            elif button.action == "unpause":
+                                return
+                            elif button.action == "quit":
+                                quit_game()
+                            else:
+                                print("Button action: {} does not exist".format(button.action))
+
+        game_display.fill(white)
+
+        for button in buttons:
+            button.display(game_display, pygame.mouse.get_pos())
+
+        pause_text.display(game_display)
+
+        pygame.display.update()
+        clock.tick(FPS)
+
+
 def game_loop():
     global total_score
     undo_button = Button(display_dimensions, "Undo", (10, 10), (30, 30), grey, centered=False, text_size=11, action="undo")
@@ -109,6 +145,8 @@ def game_loop():
                     # for testing if you can win. TODO change later
                 elif event.key == pygame.K_w:
                     win_screen()
+                elif event.key == pygame.K_ESCAPE:
+                    pause_screen()
             if event.type == pygame.MOUSEBUTTONDOWN:    
                 mouse_pos = pygame.mouse.get_pos()
                 if event.button == 1:
