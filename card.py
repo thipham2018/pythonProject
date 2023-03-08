@@ -8,6 +8,7 @@ class Card:
         self.suit = suit
         self.rank = rank
         self.face_up = face_up
+        self.generatedScore = False
 
         if self.suit == 'diamonds' or self.suit == 'hearts':
             self.color = 'red'
