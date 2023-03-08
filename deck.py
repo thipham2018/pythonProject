@@ -39,7 +39,6 @@ class Deck:
         for name_of_image, card_image in self.card_images.items():
             self.card_images[name_of_image] = pygame.transform.scale(card_image, self.card_size)
 
-    # TODO fix deck creation so a full deck is made
     def load_cards(self):
         for suit in self.suits:
             for rank in self.ranks:
@@ -125,7 +124,8 @@ class Deck:
             pile_to_transfer_to = self.which_pile_clicked(mouse_position)
             if self.selected_pile != None and pile_to_transfer_to != None:
                 valid_move = self.selected_pile.transfer_cards(self.selected_cards, pile_to_transfer_to, self.ranks)
-                score = 5 if (self.selected_pile.pile_type != 'stock' and valid_move) else 0
+                score = 5 if (self.selected_pile.pile_type != 'stock' and valid_move and self.selected_cards[0].generatedScore == False) else 0
+                self.selected_cards[0].generatedScore = True
                 piles_to_update = self.selected_pile, pile_to_transfer_to
             else:
                 piles_to_update = None
