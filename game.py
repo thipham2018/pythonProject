@@ -2,6 +2,7 @@ import pygame
 from deck import Deck
 from ui import Text, Button, RadioGroup, Radio, Checkbox
 import settings_manager, history_manager
+import tutorial
 
 vegas_rules = settings_manager.load_settings()['vegas_rules']
 
@@ -87,7 +88,8 @@ def pause_screen():
     start_menu_button = Button(display_dimensions, "Start Menu", (-250, 0), (200, 100), green, text_color=white, text_size=25, action="start_menu")
     unpause_button = Button(display_dimensions, "Unpause", (0, 0), (200, 100), blue, text_color=white, text_size=25, action="unpause")
     quit_button = Button(display_dimensions, "Quit", (250, 0), (200, 100), red, text_color=white, text_size=25, action="quit")
-    buttons = [start_menu_button, unpause_button, quit_button]
+    tutorial_button = Button(display_dimensions, "Tutorial", (0, 120), (200, 100), grey, text_color=white, text_size=25, action="tutorial")
+    buttons = [start_menu_button, unpause_button, quit_button, tutorial_button]
     pause_text = Text(display_dimensions, (0, -200), "Paused", 60, black)
 
     while True:
@@ -105,6 +107,8 @@ def pause_screen():
                                 return
                             elif button.action == "quit":
                                 quit_game()
+                            elif button.action == "tutorial":
+                                tutorial.tutorial_screen()
                             else:
                                 print("Button action: {} does not exist".format(button.action))
 
