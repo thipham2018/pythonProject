@@ -32,7 +32,7 @@ page = [p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12]
 next_text = "Next"
 
 clock = pygame.time.Clock()
-FPS = 10
+FPS = 30
 
 
 def tutorial_screen():
@@ -77,4 +77,4 @@ def tutorial_screen():
 
 
             pygame.display.update()
-            clock.tick(30)
+            clock.tick(FPS)
