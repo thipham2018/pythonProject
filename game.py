@@ -2,8 +2,15 @@ import pygame
 from deck import Deck
 from ui import Text, Button, RadioGroup, Radio, Checkbox
 import settings_manager, history_manager
+import tutorial
 
-vegas_rules = settings_manager.load_settings()['vegas_rules']
+dictionary = settings_manager.load_settings()
+
+
+vegas_rules = dictionary['vegas_rules']
+#draw_three = dictionary['draw_three']
+drag_and_drop = dictionary['drag_and_drop']
+
 
 white = (255, 255, 255)
 black = (0, 0, 0)
@@ -25,9 +32,9 @@ pygame.display.set_caption('Solitaire')
 icon = pygame.image.load('resources/solitaire_icon.png')
 pygame.display.set_icon(icon)
 
-# main game clock, ie this checks 10 times per second (FPS) for any update
+# main game clock, ie this checks 30 times per second (FPS) for any update
 clock = pygame.time.Clock()
-FPS = 10
+FPS = 30
 
 total_score = 0
 if vegas_rules:
@@ -87,7 +94,8 @@ def pause_screen():
     start_menu_button = Button(display_dimensions, "Start Menu", (-250, 0), (200, 100), green, text_color=white, text_size=25, action="start_menu")
     unpause_button = Button(display_dimensions, "Unpause", (0, 0), (200, 100), blue, text_color=white, text_size=25, action="unpause")
     quit_button = Button(display_dimensions, "Quit", (250, 0), (200, 100), red, text_color=white, text_size=25, action="quit")
-    buttons = [start_menu_button, unpause_button, quit_button]
+    tutorial_button = Button(display_dimensions, "Tutorial", (0, 120), (200, 100), grey, text_color=white, text_size=25, action="tutorial")
+    buttons = [start_menu_button, unpause_button, quit_button, tutorial_button]
     pause_text = Text(display_dimensions, (0, -200), "Paused", 60, black)
 
     while True:
@@ -105,6 +113,8 @@ def pause_screen():
                                 return
                             elif button.action == "quit":
                                 quit_game()
+                            elif button.action == "tutorial":
+                                tutorial.tutorial_screen()
                             else:
                                 print("Button action: {} does not exist".format(button.action))
 
@@ -121,6 +131,7 @@ def pause_screen():
 
 def game_loop():
     global total_score
+    check_settings()
     undo_button = Button(display_dimensions, "Undo", (10, 10), (30, 30), grey, centered=False, text_size=11, action="undo")
     restart_button = Button(display_dimensions, "Restart", (display_dimensions[0]-50, 10), (40, 30), grey, centered=False, text_size=10, action="restart")
     buttons = [undo_button, restart_button]
@@ -147,15 +158,49 @@ def game_loop():
                     win_screen()
                 elif event.key == pygame.K_ESCAPE:
                     pause_screen()
-            if event.type == pygame.MOUSEBUTTONDOWN:    
-                mouse_pos = pygame.mouse.get_pos()
-                if event.button == 1:
-                    piles_to_update, valid_move, score = deck.handle_click(mouse_pos)
-                    total_score += score
-                    
-                    deck.update(piles_to_update, display_dimensions[1])
-                    if valid_move:
-                        hm.valid_move_made(deck)
+
+            # just a check to see if drag and drop is enabled
+            if not drag_and_drop:
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    mouse_pos = pygame.mouse.get_pos()
+                    if event.button == 1:
+                        piles_to_update, valid_move, score = deck.handle_click(mouse_pos)
+                        total_score += score
+
+                        deck.update(piles_to_update, display_dimensions[1])
+                        if valid_move:
+                            hm.valid_move_made(deck)
+
+                        for button in buttons:
+                            if button.check_if_clicked(mouse_pos):
+                                if button.action == "undo":
+                                    deck = hm.undo(deck)
+                                    total_score -= (5 if total_score != 0 else 0)
+                                if button.action == "restart":
+                                    game_loop()
+                    if event.button == 3:
+                        deck.handle_right_click(mouse_pos)
+            # if drag and drop IS enabled, a slightly different method is called. Must differentiate between
+            # button down and button up to see if the player is clicking or letting go of click
+            else:
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    drag = True
+                    mouse_pos = pygame.mouse.get_pos()
+                    if event.button == 1:
+                        deck.handle_drag(mouse_pos,drag)
+                if event.type == pygame.MOUSEBUTTONUP:
+                    drag = False
+                    mouse_pos = pygame.mouse.get_pos()
+                    if event.button == 1:
+                        piles_to_update, valid_move, score = deck.handle_drag(mouse_pos,drag)
+                        total_score += score
+
+                        deck.update(piles_to_update, display_dimensions[1])
+                        if valid_move:
+                            hm.valid_move_made(deck)
+
+                        # deselect card if the player lets go while not able to perform a legal move
+                        deck.deselect()
 
                     for button in buttons:
                         if button.check_if_clicked(mouse_pos):
@@ -164,14 +209,14 @@ def game_loop():
                                 total_score -= (5 if total_score != 0 else 0)
                             if button.action == "restart":
                                 game_loop()
-                if event.button == 3:
-                    deck.handle_right_click(mouse_pos)
+                    if event.button == 3:
+                        deck.handle_right_click(mouse_pos)
 
         game_display.fill([2, 48, 32])  # background color #023020
-        
+
         for button in buttons:
             button.display(game_display, pygame.mouse.get_pos())
-        
+
         score_text = Text(display_dimensions, (0, -380), "Score: {}".format(total_score), 20, white)
         score_text.display(game_display)
         deck.display(game_display)
@@ -188,11 +233,14 @@ def options_menu():
     back_button = Button(display_dimensions, "Back", (10, 25), (75, 25), red, centered=False, text_color=white, text_size=14, action="back")
     buttons = [back_button]
 
-    #draw_three_checkbox = Checkbox(display_dimensions, (10, 100), centered=False, checked=settings['draw_three'])
-    #draw_three_label = Text(display_dimensions, (40, 100), "Draw three cards from deck", 14, black, centered=False)
-
     vegas_rules_checkbox = Checkbox(display_dimensions, (10, 100), centered=False, checked=settings['vegas_rules'])
     vegas_rules_label = Text(display_dimensions, (40, 100), "Play with Vegas Rules", 14, black, centered=False)
+
+    #draw_three_checkbox = Checkbox(display_dimensions, (10, 130), centered=False, checked=settings['draw_three'])
+    #draw_three_label = Text(display_dimensions, (40, 130), "Draw three cards from deck", 14, black, centered=False)
+
+    drag_and_drop_checkbox = Checkbox(display_dimensions, (10, 160), centered=False, checked=settings['drag_and_drop'])
+    drag_and_drop_label = Text(display_dimensions, (40, 160), "Drag and drop cards", 14, black, centered=False)
 
     while True:
         for event in pygame.event.get():
@@ -204,8 +252,8 @@ def options_menu():
                     for button in buttons:
                         if button.check_if_clicked(mouse_pos):
                             if button.action == "back":
-                                #settings_manager.save_settings({'draw_three': draw_three_checkbox.checked})
-                                settings_manager.save_settings({'vegas_rules': vegas_rules_checkbox.checked})
+                                # saves settings
+                                settings_manager.save_settings({'vegas_rules': vegas_rules_checkbox.checked, 'drag_and_drop': drag_and_drop_checkbox.checked})
                                 global vegas_rules
                                 vegas_rules = settings_manager.load_settings()['vegas_rules']
                                 global total_score
@@ -217,19 +265,23 @@ def options_menu():
                             else:
                                 print("Button action: {} does not exist".format(button.action))
 
-                    # draw_three_checkbox.check_if_clicked(mouse_pos)
+                    #draw_three_checkbox.check_if_clicked(mouse_pos)
                     vegas_rules_checkbox.check_if_clicked(mouse_pos)
+                    drag_and_drop_checkbox.check_if_clicked(mouse_pos)
 
         game_display.fill(white)
 
         title_text.display(game_display)
         about_text.display(game_display)
 
-        # draw_three_label.display(game_display)
-        # draw_three_checkbox.display(game_display)
+        #draw_three_label.display(game_display)
+        #draw_three_checkbox.display(game_display)
 
         vegas_rules_checkbox.display(game_display)
         vegas_rules_label.display(game_display)
+
+        drag_and_drop_checkbox.display(game_display)
+        drag_and_drop_label.display(game_display)
 
         for button in buttons:
             button.display(game_display, pygame.mouse.get_pos())
@@ -276,5 +328,16 @@ def start_menu():
 
         pygame.display.update()
         clock.tick(FPS)
+
+def check_settings():
+    dictionary = settings_manager.load_settings()
+    global vegas_rules
+    #global draw_three
+    global drag_and_drop
+
+    vegas_rules = dictionary['vegas_rules']
+    #draw_three = dictionary['draw_three']
+    drag_and_drop = dictionary['drag_and_drop']
+
 
 

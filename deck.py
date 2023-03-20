@@ -2,6 +2,8 @@ import os
 import random
 import pygame
 from itertools import count
+
+import game
 from pile import Pile
 from card import Card
 
@@ -39,7 +41,6 @@ class Deck:
         for name_of_image, card_image in self.card_images.items():
             self.card_images[name_of_image] = pygame.transform.scale(card_image, self.card_size)
 
-    # TODO fix deck creation so a full deck is made
     def load_cards(self):
         for suit in self.suits:
             for rank in self.ranks:
@@ -106,6 +107,7 @@ class Deck:
         piles_to_update = None
         valid_move = False
         score = 0
+        print('what the fuck')
         if self.selection == False:
             # the player selects card/s
             self.selected_pile = self.which_pile_clicked(mouse_position)
@@ -125,13 +127,67 @@ class Deck:
             pile_to_transfer_to = self.which_pile_clicked(mouse_position)
             if self.selected_pile != None and pile_to_transfer_to != None:
                 valid_move = self.selected_pile.transfer_cards(self.selected_cards, pile_to_transfer_to, self.ranks)
-                score = 5 if (self.selected_pile.pile_type != 'stock' and valid_move) else 0
+                score = 5 if (self.selected_pile.pile_type != 'stock' and valid_move and self.selected_cards[0].generatedScore == False) else 0
+                self.selected_cards[0].generatedScore = True
                 piles_to_update = self.selected_pile, pile_to_transfer_to
             else:
                 piles_to_update = None
 
             self.deselect()
         return piles_to_update, valid_move, score
+
+    #try not calling pile.selected in maybe a certain case to fix pesky buG?
+    def handle_drag(self, mouse_position, drag):
+        piles_to_update = None
+        valid_move = False
+        score = 0
+        if not drag:
+            if self.selection == False:
+                # the player selects card/s
+                self.selected_pile = self.which_pile_clicked(mouse_position)
+
+                if self.selected_pile != None:
+                    if self.selected_pile.pile_type == 'stock':
+                        valid_move = True
+                        score = 0
+                if self.selected_pile != None and self.selected_pile.pile_type != 'stock':
+                    self.selection, self.selected_cards, deselect_pile = self.selected_pile.selected(mouse_position,
+                                                                                                     self.piles)
+                    if deselect_pile:
+                        self.deselect()
+                    else:
+                        if len(self.selected_cards) != 0:
+                            self.selection_rect = self.selected_pile.selection_rect(self.selected_cards[0])
+            else:
+                pile_to_transfer_to = self.which_pile_clicked(mouse_position)
+                if self.selected_pile != None and pile_to_transfer_to != None:
+                    valid_move = self.selected_pile.transfer_cards(self.selected_cards, pile_to_transfer_to, self.ranks)
+                    score = 5 if (self.selected_pile.pile_type != 'stock' and valid_move and self.selected_cards[
+                        0].generatedScore == False) else 0
+                    self.selected_cards[0].generatedScore = True
+                    piles_to_update = self.selected_pile, pile_to_transfer_to
+                else:
+                    piles_to_update = None
+
+                self.deselect()
+            return piles_to_update, valid_move, score
+
+        else:
+            if self.selection == False:
+                # the player selects card/s
+                self.selected_pile = self.which_pile_clicked(mouse_position)
+                if self.selected_pile != None:
+                    if self.selected_pile.pile_type == 'stock':
+                        valid_move = True
+                        score = 0
+                if self.selected_pile != None:
+                    self.selection, self.selected_cards, deselect_pile = self.selected_pile.selected(mouse_position,
+                                                                                                     self.piles)
+                    if deselect_pile:
+                        self.deselect()
+                    else:
+                        if len(self.selected_cards) != 0:
+                            self.selection_rect = self.selected_pile.selection_rect(self.selected_cards[0])
 
     def handle_right_click(self, mouse_position):
         self.deselect()
