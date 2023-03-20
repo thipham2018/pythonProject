@@ -2,8 +2,8 @@ import pickle
 import os
 
 
-
-default_settings = {'vegas_rules': False, 'draw_three': False, 'drag_and_drop': True}
+# default_settings = {'draw_three': False}
+default_settings = {'vegas_rules': False}
 
 
 
